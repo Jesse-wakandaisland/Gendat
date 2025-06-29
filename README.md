@@ -1,6 +1,6 @@
 # AlgorithmPress Database 🔥
 
-Create and manage online product listings, effectively turning your WordPress site into an e-commerce or product catalog platform. It's particularly useful for showcasing products with detailed specifications, allowing comparisons, and facilitating sales.
+Create and manage online product listings, effectively turning your AlgorithmPress site into an e-commerce or product catalog platform. It's particularly useful for showcasing products with detailed specifications, allowing comparisons, and facilitating sales.
 
 ## ✨ Features
 
