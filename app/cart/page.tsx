@@ -29,12 +29,24 @@ export default function CartPage() {
         toast.error("Your cart is empty. Add some products before checking out.");
         return;
     }
+    // TODO: In a real app, before proceeding to payment, re-validate product prices and stock from the database.
+    // This ensures data consistency if details changed while items were in the cart.
+    // For example:
+    // const validationResults = await validateCartItemsAgainstDatabase(cartItems);
+    // if (!validationResults.isValid) {
+    //   toast.error("Some items in your cart have changed (e.g., price or stock). Please review your cart.");
+    //   // Update cartItems state with validated data and prompt user
+    //   return;
+    // }
+
     toast.success("Checkout Successful! (Mock)", {
-        description: `Total: $${getCartTotal().toFixed(2)}. Thank you for your order!`,
+        description: `Total: $${getCartTotal().toFixed(2)}. Thank you for your order! This is a mock checkout. In a real application, product prices and stock would be re-validated here.`,
+        duration: 8000, // Longer duration for this important mock message
         icon: <CreditCard className="text-green-500" />
     });
     clearCart(); // Clear cart after mock checkout
-    // In a real app, you'd redirect to an order confirmation page or similar
+    // In a real app, you'd redirect to an order confirmation page or similar,
+    // after creating an order record in the database.
   };
 
   if (cartItems.length === 0) {

@@ -1,40 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShoppingCart, CheckCircle, GitCompareArrows } from "lucide-react";
+import { ArrowLeft, ShoppingCart, CheckCircle, GitCompareArrows, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { CompareButton } from "@/components/compare-button"; // Import CompareButton
+import { CompareButton } from "@/components/compare-button";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner"; // Using sonner for toast notifications
-
-import useCartStore from "@/hooks/use-cart-store"; // Import cart store
-
-// Mock localStorage functions for SSR compatibility
-// No longer needed for cart as Zustand handles persistence, but keep for products for now.
-const MOCK_STORAGE = {
-  getItem: (_key: string) => null,
-  setItem: (_key: string, _value: string) => {},
-  removeItem: (_key: string) => {},
-};
-
-const getLocalStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage;
-  }
-  return MOCK_STORAGE;
-};
-
-const PRODUCTS_STORAGE_KEY = "algorithmpress_products";
-// const CART_STORAGE_KEY = "algorithmpress_cart"; // Cart is now managed by Zustand store
+import { toast } from "sonner";
+import useCartStore from "@/hooks/use-cart-store";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 interface ProductPageParams {
@@ -44,38 +26,59 @@ interface ProductPageParams {
 export default function ProductDetailPage({ params }: { params: ProductPageParams }) {
   const { productId } = params;
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(undefined);
-  const { addToCart } = useCartStore(); // Get addToCart from the store
+  const { addToCart } = useCartStore();
+
+  const fetchProductDetails = useCallback(async () => {
+    if (!productId) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/products/${productId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Product not found");
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch product details");
+      }
+      const data: Product = await response.json();
+      const processedProduct = {
+        ...data,
+        categories: Array.isArray(data.categories) ? data.categories : [],
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+      };
+      setProduct(processedProduct);
+
+      if (processedProduct.images && processedProduct.images.length > 0) {
+        setSelectedImage(processedProduct.images[0]);
+      } else {
+        setSelectedImage("/placeholder.svg");
+      }
+    } catch (err: any) {
+      console.error("Fetch product detail error:", err);
+      setError(err.message);
+      toast.error(`Error: ${err.message}`);
+      setProduct(null); // Clear product on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [productId]);
 
   useEffect(() => {
-    const storedProducts = getLocalStorage().getItem(PRODUCTS_STORAGE_KEY);
-    if (storedProducts) {
-      const products: Product[] = JSON.parse(storedProducts);
-      const foundProduct = products.find(p => p.id === productId);
-      if (foundProduct) {
-        setProduct({
-          ...foundProduct,
-          createdAt: new Date(foundProduct.createdAt),
-          updatedAt: new Date(foundProduct.updatedAt),
-        });
-        if (foundProduct.images && foundProduct.images.length > 0) {
-          setSelectedImage(foundProduct.images[0]);
-        } else {
-          setSelectedImage("/placeholder.svg");
-        }
-      }
-    }
-    setLoading(false);
-  }, [productId]);
+    fetchProductDetails();
+  }, [fetchProductDetails]);
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product, 1); // Add 1 quantity by default
+      addToCart(product, 1);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
         <div className="container mx-auto p-4 md:p-8 animate-pulse">
             <div className="mb-6">

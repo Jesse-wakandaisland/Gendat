@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Product } from "@/types/product";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,100 +11,97 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { SearchIcon, XIcon, GitCompareArrows } from "lucide-react"; // Added GitCompareArrows
-import { CompareButton } from "@/components/compare-button"; // Import CompareButton
-import useCompareStore from "@/hooks/use-compare-store"; // Import compare store
-
-// Mock localStorage functions for SSR compatibility
-const MOCK_STORAGE = {
-  getItem: (_key: string) => null,
-  setItem: (_key: string, _value: string) => {},
-  removeItem: (_key: string) => {},
-};
-
-const getLocalStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage;
-  }
-  return MOCK_STORAGE;
-};
-
-const PRODUCTS_STORAGE_KEY = "algorithmpress_products";
+import { SearchIcon, XIcon, GitCompareArrows } from "lucide-react";
+import { CompareButton } from "@/components/compare-button";
+import useCompareStore from "@/hooks/use-compare-store";
+import { toast } from "sonner";
 
 export default function ProductsDisplayPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]); // Default wide range
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(10000);
+  const [maxPrice, setMaxPrice] = useState(10000); // Initial default max
   const { compareItems } = useCompareStore();
 
+  const fetchAndProcessProducts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/products");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch products");
+      }
+      let productsData: Product[] = await response.json();
 
-  useEffect(() => {
-    const storedProducts = getLocalStorage().getItem(PRODUCTS_STORAGE_KEY);
-    let productsData: Product[] = [];
-    if (storedProducts) {
-      productsData = JSON.parse(storedProducts).map((p: Product) => ({
+      productsData = productsData.map(p => ({
         ...p,
+        categories: Array.isArray(p.categories) ? p.categories : [],
         createdAt: new Date(p.createdAt),
         updatedAt: new Date(p.updatedAt),
       }));
-    }
-    setAllProducts(productsData);
-    setFilteredProducts(productsData);
 
-    // Derive categories and price range from products
-    if (productsData.length > 0) {
-      const categories = Array.from(new Set(productsData.flatMap(p => p.categories)));
-      setAvailableCategories(categories);
+      setAllProducts(productsData);
+      // setFilteredProducts(productsData); // Filter effect will handle this
 
-      const prices = productsData.map(p => p.price);
-      const dbMinPrice = Math.min(...prices);
-      const dbMaxPrice = Math.max(...prices);
-      setMinPrice(dbMinPrice);
-      setMaxPrice(dbMaxPrice);
-      setPriceRange([dbMinPrice, dbMaxPrice]);
-    } else {
+      if (productsData.length > 0) {
+        const categories = Array.from(new Set(productsData.flatMap(p => p.categories))).sort();
+        setAvailableCategories(categories);
+
+        const prices = productsData.map(p => p.price);
+        const dbMinPrice = Math.min(...prices);
+        const dbMaxPrice = Math.max(...prices);
+
+        setMinPrice(dbMinPrice);
+        setMaxPrice(dbMaxPrice > dbMinPrice ? dbMaxPrice : dbMinPrice + 100); // Ensure max is greater than min
+        setPriceRange([dbMinPrice, dbMaxPrice > dbMinPrice ? dbMaxPrice : dbMinPrice + 100]);
+      } else {
+        setAvailableCategories([]);
         setMinPrice(0);
         setMaxPrice(10000); // Default if no products
         setPriceRange([0, 10000]);
+      }
+    } catch (error: any) {
+      toast.error(`Error fetching products: ${error.message}`);
+      console.error("Fetch products error:", error);
+      setAllProducts([]); // Clear products on error
+      // setFilteredProducts([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchAndProcessProducts();
+  }, [fetchAndProcessProducts]);
 
   useEffect(() => {
     let tempProducts = allProducts;
 
-    // Filter by search term
     if (searchTerm) {
       tempProducts = tempProducts.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.categories.some(cat => cat.toLowerCase().includes(searchTerm.toLowerCase()))
+        (Array.isArray(product.categories) && product.categories.some(cat => cat.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
 
-    // Filter by category
     if (selectedCategory !== "all") {
       tempProducts = tempProducts.filter(product =>
-        product.categories.includes(selectedCategory)
+        Array.isArray(product.categories) && product.categories.includes(selectedCategory)
       );
     }
 
-    // Filter by price range
     tempProducts = tempProducts.filter(product =>
         product.price >= priceRange[0] && product.price <= priceRange[1]
     );
 
-
     setFilteredProducts(tempProducts);
   }, [searchTerm, selectedCategory, priceRange, allProducts]);
-
 
   const handlePriceRangeChange = (value: [number, number]) => {
     setPriceRange(value);
@@ -113,11 +110,15 @@ export default function ProductsDisplayPage() {
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedCategory("all");
-    setPriceRange([minPrice, maxPrice]);
+    // Reset price range to the actual min/max derived from products, or default if no products
+    if (allProducts.length > 0) {
+        setPriceRange([minPrice, maxPrice]);
+    } else {
+        setPriceRange([0, 10000]);
+    }
   };
 
-
-  if (loading) {
+  if (isLoading) {
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-3xl font-bold mb-8 text-center">Our Products</h1>
