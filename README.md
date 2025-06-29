@@ -1,33 +1,40 @@
-# Gen8Data 🔥
+# AlgorithmPress Database 🔥
 
-Generate custom datasets instantly with AI or predefined templates. Perfect for developers, analysts, and anyone who needs mock data fast.
+Create and manage online product listings, effectively turning your WordPress site into an e-commerce or product catalog platform. It's particularly useful for showcasing products with detailed specifications, allowing comparisons, and facilitating sales.
 
 ## ✨ Features
 
-- _AI-Powered Generation_: Describe what you need, get the perfect dataset
-- _Ready-Made Templates_: Common data types pre-configured for instant use
-- _Multiple Export Formats_: Download as CSV or Excel
-- _Zero Setup_: Web-based, no installation required
-- _Fast & Intuitive_: Generate datasets in seconds
+- Product Management (CRUD operations, categorization, attributes/specifications)
+- Customizable Product Pages & Display (templates, responsive design, layout options)
+- Search & Filtering (advanced search, robust filter system)
+- Product Comparison (side-by-side comparison, comparison pages)
+- E-commerce Capabilities (payment gateway integration, inventory management, discounts/coupons)
+- SEO Friendliness (built-in SEO features, compatibility with SEO plugins)
+- User Interaction & Reviews (product reviews system, animated rating bars)
+- Widgets (New Arrivals, Top Rated Products, Recent Comparisons, Category List, Brands List)
+- Ease of Use (user-friendly interface, simple installation)
+- Scalability (handles small to large stores)
 
 ## 🚀 How It Works
 
-1. _Choose your method_: Use AI prompts or select a template
-2. _Customize_: Adjust fields, data types, and row counts
-3. _Generate_: Create your dataset instantly
-4. _Download_: Export as CSV or Excel format
+1. _Set up product categories and attributes._
+2. _Add products with detailed information and specifications._
+3. _Customize the display of product pages and listings._
+4. _Enable users to search, filter, and compare products._
+5. _(Optional) Integrate with e-commerce functionalities for online sales._
 
 ## 🎯 Perfect For
 
-- Sample datasets for data analysis
-- Prototyping and demos
-- Learning data science concepts
-- Quick data visualization projects
+- Full-fledged E-commerce Stores
+- Product Catalogs/Showcasing
+- Specification-Heavy Product Sites (e.g., electronics, automotive parts)
+- Wholesale Stores
+- Hobbyist Websites for cataloging collections
 
 ## 🔗 Live Demo
 
-[Try Gen8Data →](https://gen8data.vercel.app)
+[Link to be updated once deployed on Cubbit for AlgorithmPress.com/app]
 
 ---
 
-Made with ❤ for developers | data analysts who need data, fast.
+This project aims to be the database manager and generator for AlgorithmPress.com/app.

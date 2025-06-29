@@ -18,6 +18,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import Link from "next/link" // Import Link for navigation
+import { usePathname } from "next/navigation" // To highlight active link
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -84,7 +86,9 @@ const SidebarProvider = React.forwardRef<
         }
 
         // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (typeof document !== 'undefined') {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
       [setOpenProp, open]
     )
@@ -107,9 +111,10 @@ const SidebarProvider = React.forwardRef<
           toggleSidebar()
         }
       }
-
-      window.addEventListener("keydown", handleKeyDown)
-      return () => window.removeEventListener("keydown", handleKeyDown)
+      if (typeof window !== 'undefined') {
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+      }
     }, [toggleSidebar])
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
@@ -156,12 +161,22 @@ const SidebarProvider = React.forwardRef<
 )
 SidebarProvider.displayName = "SidebarProvider"
 
+
+// New type for navigation items
+type NavItem = {
+  href: string;
+  label: string;
+  icon?: React.ReactNode; // Optional icon
+};
+
+// Modified Sidebar component to accept navItems
 const Sidebar = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    side?: "left" | "right"
-    variant?: "sidebar" | "floating" | "inset"
-    collapsible?: "offcanvas" | "icon" | "none"
+    side?: "left" | "right";
+    variant?: "sidebar" | "floating" | "inset";
+    collapsible?: "offcanvas" | "icon" | "none";
+    navItems?: NavItem[]; // Added navItems prop
   }
 >(
   (
@@ -170,12 +185,35 @@ const Sidebar = React.forwardRef<
       variant = "sidebar",
       collapsible = "offcanvas",
       className,
-      children,
+      children, // Keep children for custom content if needed
+      navItems, // Destructure navItems
       ...props
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+    const pathname = usePathname(); // Get current path
+
+    const renderNavItems = () => (
+      <SidebarMenu>
+        {navItems?.map((item) => (
+          <SidebarMenuItem key={item.href}>
+            <Link href={item.href} passHref legacyBehavior>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+                tooltip={item.label}
+              >
+                <a> {/* Link is now the child of SidebarMenuButton via asChild */}
+                  {item.icon}
+                  <span>{item.label}</span>
+                </a>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    );
 
     if (collapsible === "none") {
       return (
@@ -187,9 +225,11 @@ const Sidebar = React.forwardRef<
           ref={ref}
           {...props}
         >
+          {/* Render nav items here as well or allow children to define content */}
+          {navItems && <SidebarContent>{renderNavItems()}</SidebarContent>}
           {children}
         </div>
-      )
+      );
     }
 
     if (isMobile) {
@@ -206,10 +246,14 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <div className="flex h-full w-full flex-col">
+              {/* Render nav items here or allow children */}
+              {navItems && <SidebarContent>{renderNavItems()}</SidebarContent>}
+              {children}
+            </div>
           </SheetContent>
         </Sheet>
-      )
+      );
     }
 
     return (
@@ -250,13 +294,15 @@ const Sidebar = React.forwardRef<
             data-sidebar="sidebar"
             className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
           >
+            {/* Render nav items here or allow children */}
+            {navItems && <SidebarContent>{renderNavItems()}</SidebarContent>}
             {children}
           </div>
         </div>
       </div>
-    )
+    );
   }
-)
+);
 Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
@@ -404,7 +450,7 @@ const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden p-2", // Added padding here
         className
       )}
       {...props}
@@ -534,8 +580,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<"button"> & {
+  HTMLButtonElement, // Changed from HTMLButtonElement to allow for Link as child
+  React.ComponentProps<"button"> & { // Still accept button props
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
@@ -549,6 +595,7 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      children, // Ensure children is passed through
       ...props
     },
     ref
@@ -556,7 +603,7 @@ const SidebarMenuButton = React.forwardRef<
     const Comp = asChild ? Slot : "button"
     const { isMobile, state } = useSidebar()
 
-    const button = (
+    const buttonContent = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
@@ -564,11 +611,14 @@ const SidebarMenuButton = React.forwardRef<
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     )
 
+
     if (!tooltip) {
-      return button
+      return buttonContent;
     }
 
     if (typeof tooltip === "string") {
@@ -579,7 +629,7 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
